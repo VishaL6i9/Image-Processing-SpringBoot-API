@@ -1,12 +1,19 @@
 package com.example.demo.controller;
 
+import filters.GrayscaleFilter;
+import net.coobird.thumbnailator.Thumbnails;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/image")
@@ -23,20 +30,102 @@ public class ImageController {
                 Files.createDirectories(uploadPath);
             }
 
-            String fileName = file.getOriginalFilename();
+            String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
             Path filePath = uploadPath.resolve(fileName);
             Files.copy(file.getInputStream(), filePath);
 
             return ResponseEntity.ok("http://localhost:8080/api/image/get/" + fileName);
         } catch (IOException e) {
-            return ResponseEntity.badRequest().body("Failed to upload image");
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to upload image: " + e.getMessage());
         }
     }
 
     @GetMapping("/get/{fileName}")
     public ResponseEntity<byte[]> getImage(@PathVariable String fileName) throws IOException {
+        if (fileName.contains("..") || fileName.contains("/") || fileName.contains("\\")) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid file name".getBytes());
+        }
         Path imagePath = Paths.get(UPLOAD_DIR).resolve(fileName);
         byte[] imageBytes = Files.readAllBytes(imagePath);
-        return ResponseEntity.ok().body(imageBytes);
+
+        String mimeType = Files.probeContentType(imagePath);
+        if (mimeType == null) {
+            mimeType = "application/octet-stream";
+        }
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType(mimeType));
+        headers.setContentLength(imageBytes.length);
+
+        return new ResponseEntity<>(imageBytes, headers, HttpStatus.OK);
     }
+
+    @PostMapping("/rotate/{degrees}")
+    public ResponseEntity<String> rotateImage(@RequestParam("file") MultipartFile file, @PathVariable int degrees) {
+        try {
+            Path uploadPath = Paths.get(UPLOAD_DIR);
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+            }
+
+            String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
+            Path filePath = uploadPath.resolve(fileName);
+
+            Thumbnails.of(file.getInputStream())
+                    .rotate(degrees)
+                    .size(500, 500)
+                    .toFile(filePath.toFile());
+
+            return ResponseEntity.ok("http://localhost:8080/api/image/get/" + fileName);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to rotate image: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/resize")
+    public ResponseEntity<String> resizeImage(@RequestParam("file") MultipartFile file, @RequestParam int width, @RequestParam int height) {
+        try {
+            Path uploadPath = Paths.get(UPLOAD_DIR);
+            if (!Files.exists(uploadPath)) {
+                Files.createDirectories(uploadPath);
+            }
+
+            String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
+            Path filePath = uploadPath.resolve(fileName);
+
+            Thumbnails.of(file.getInputStream())
+                    .size(width, height)
+                    .toFile(filePath.toFile());
+
+            return ResponseEntity.ok("http://localhost:8080/api/image/get/" + fileName);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to resize image: " + e.getMessage());
+        }
+    }
+    @PostMapping("/grayscale")
+public ResponseEntity<String> grayscaleImage(@RequestParam("file") MultipartFile file) {
+    try {
+        Path uploadPath = Paths.get(UPLOAD_DIR);
+        if (!Files.exists(uploadPath)) {
+            Files.createDirectories(uploadPath);
+        }
+
+        String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
+        Path filePath = uploadPath.resolve(fileName);
+
+        Thumbnails.of(file.getInputStream())
+                .size(500, 500) // Optional: Resize to 500x500 pixels
+                .outputFormat("jpg") // Ensure the output format is set to JPEG
+                .addFilter(new GrayscaleFilter())
+                .toFile(filePath.toFile());
+
+        return ResponseEntity.ok("http://localhost:8080/api/image/get/" + fileName);
+    } catch (IOException e) {
+        e.printStackTrace();
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to convert image to grayscale: " + e.getMessage());
+    }
+}
 }
