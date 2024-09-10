@@ -1,6 +1,7 @@
 package com.example.demo.controller;
 
 import filters.GrayscaleFilter;
+import filters.InvertFilter;
 import net.coobird.thumbnailator.Thumbnails;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -9,11 +10,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.ImageIO;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.UUID;
+import java.awt.image.BufferedImage;
+import java.awt.Graphics2D;
 
 @RestController
 @RequestMapping("/api/image")
@@ -61,6 +65,61 @@ public class ImageController {
         return new ResponseEntity<>(imageBytes, headers, HttpStatus.OK);
     }
 
+@PostMapping("/invert")
+public ResponseEntity<String> invertImage(@RequestParam("file") MultipartFile file) {
+    try {
+        Path uploadPath = Paths.get(UPLOAD_DIR);
+        if (!Files.exists(uploadPath)) {
+            Files.createDirectories(uploadPath);
+        }
+
+        String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
+        Path filePath = uploadPath.resolve(fileName);
+
+        Thumbnails.of(file.getInputStream())
+                .addFilter(new InvertFilter())
+                .outputFormat("png")
+                .toFile(filePath.toFile());
+
+        return ResponseEntity.ok("http://localhost:8080/api/image/get/" + fileName);
+    } catch (IOException e) {
+        e.printStackTrace();
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to invert image: " + e.getMessage());
+    }
+}
+@PostMapping("/flip")
+public ResponseEntity<String> flipImage(@RequestParam("file") MultipartFile file, @RequestParam("direction") String direction) {
+    try {
+        Path uploadPath = Paths.get(UPLOAD_DIR);
+        if (!Files.exists(uploadPath)) {
+            Files.createDirectories(uploadPath);
+        }
+
+        String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
+        Path filePath = uploadPath.resolve(fileName);
+
+        BufferedImage originalImage = ImageIO.read(file.getInputStream());
+        BufferedImage flippedImage = new BufferedImage(originalImage.getWidth(), originalImage.getHeight(), originalImage.getType());
+        Graphics2D g = flippedImage.createGraphics();
+
+        if ("horizontal".equalsIgnoreCase(direction)) {
+            g.drawImage(originalImage, originalImage.getWidth(), 0, 0, originalImage.getHeight(), 0, 0, originalImage.getWidth(), originalImage.getHeight(), null);
+        } else if ("vertical".equalsIgnoreCase(direction)) {
+            g.drawImage(originalImage, 0, originalImage.getHeight(), originalImage.getWidth(), 0, 0, 0, originalImage.getWidth(), originalImage.getHeight(), null);
+        } else {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid flip direction");
+        }
+
+        g.dispose();
+
+        ImageIO.write(flippedImage, "png", filePath.toFile());
+
+        return ResponseEntity.ok("http://localhost:8080/api/image/get/" + fileName);
+    } catch (IOException e) {
+        e.printStackTrace();
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to flip image: " + e.getMessage());
+    }
+}
     @PostMapping("/rotate/{degrees}")
     public ResponseEntity<String> rotateImage(@RequestParam("file") MultipartFile file, @PathVariable int degrees) {
         try {
@@ -74,7 +133,7 @@ public class ImageController {
 
             Thumbnails.of(file.getInputStream())
                     .rotate(degrees)
-                    .size(500, 500)
+                    //.size(500, 500) (500x not looking good)
                     .toFile(filePath.toFile());
 
             return ResponseEntity.ok("http://localhost:8080/api/image/get/" + fileName);
@@ -117,8 +176,8 @@ public ResponseEntity<String> grayscaleImage(@RequestParam("file") MultipartFile
         Path filePath = uploadPath.resolve(fileName);
 
         Thumbnails.of(file.getInputStream())
-                .size(500, 500) // Optional: Resize to 500x500 pixels
-                .outputFormat("jpg") // Ensure the output format is set to JPEG
+                .size(500, 500)
+                .outputFormat("png")
                 .addFilter(new GrayscaleFilter())
                 .toFile(filePath.toFile());
 
