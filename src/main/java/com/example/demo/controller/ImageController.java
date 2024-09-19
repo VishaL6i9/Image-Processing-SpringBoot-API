@@ -21,7 +21,7 @@ import java.awt.Graphics2D;
 
 @RestController
 @RequestMapping("/api/image")
-@CrossOrigin(origins = "http://localhost:4200")
+@CrossOrigin(origins = "http://localhost:3000")
 public class ImageController {
 
     private static final String UPLOAD_DIR = "uploads";
