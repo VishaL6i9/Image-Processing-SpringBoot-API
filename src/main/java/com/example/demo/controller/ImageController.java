@@ -37,7 +37,7 @@ public class ImageController {
                 Files.createDirectories(uploadPath);
             }
 
-            String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
+            String fileName = UUID.randomUUID()+ "_" + file.getOriginalFilename();
             Path filePath = uploadPath.resolve(fileName);
             Files.copy(file.getInputStream(), filePath);
 
@@ -94,21 +94,18 @@ public ResponseEntity<byte[]> getImage(@PathVariable String fileName) {
                 Files.createDirectories(uploadPath);
             }
 
-            String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
+            String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
             Path filePath = uploadPath.resolve(fileName);
 
-            // Read the original image to get its dimensions
             BufferedImage originalImage = ImageIO.read(file.getInputStream());
             int width = originalImage.getWidth();
             int height = originalImage.getHeight();
 
-            // Create a thumbnail builder and apply the invert filter
             BufferedImage processedImage = Thumbnails.of(originalImage)
                     .size(width, height)
                     .addFilter(new InvertFilter())
                     .asBufferedImage();
 
-            // Write the processed image to the file
             ImageIO.write(processedImage, "png", filePath.toFile());
 
             return ResponseEntity.ok("http://localhost:8080/api/image/get/" + fileName);
@@ -126,7 +123,7 @@ public ResponseEntity<byte[]> getImage(@PathVariable String fileName) {
                 Files.createDirectories(uploadPath);
             }
 
-            String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
+            String fileName = UUID.randomUUID()+ "_" + file.getOriginalFilename();
             Path filePath = uploadPath.resolve(fileName);
 
             BufferedImage originalImage = ImageIO.read(file.getInputStream());
@@ -152,7 +149,7 @@ public ResponseEntity<byte[]> getImage(@PathVariable String fileName) {
         }
     }
 
-    @PostMapping("/rotate/{degrees}")
+  @PostMapping("/rotate/{degrees}")
 public ResponseEntity<String> rotateImage(@RequestParam("file") MultipartFile file, @PathVariable int degrees) {
     try {
         Path uploadPath = Paths.get(UPLOAD_DIR);
@@ -160,23 +157,23 @@ public ResponseEntity<String> rotateImage(@RequestParam("file") MultipartFile fi
             Files.createDirectories(uploadPath);
         }
 
-        String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
+        String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
         Path filePath = uploadPath.resolve(fileName);
 
-        // Read the original image to get its dimensions
         BufferedImage originalImage = ImageIO.read(file.getInputStream());
-        int width = originalImage.getWidth();
-        int height = originalImage.getHeight();
 
-        // Create a thumbnail builder and rotate the image
+        // Calculate the new dimensions after rotation
+        double angle = Math.toRadians(degrees);
+        int originalWidth = originalImage.getWidth();
+        int originalHeight = originalImage.getHeight();
+        int newWidth = (int) Math.round(Math.abs(originalWidth * Math.cos(angle)) + Math.abs(originalHeight * Math.sin(angle)));
+        int newHeight = (int) Math.round(Math.abs(originalWidth * Math.sin(angle)) + Math.abs(originalHeight * Math.cos(angle)));
+
         BufferedImage rotatedImage = Thumbnails.of(originalImage)
-        .scale(1.0) // Set the scale to 1.0 (original size)
-        .rotate(degrees)
-        .size(width, height) // Set the output size
-        .asBufferedImage();
+                .size(newWidth, newHeight)
+                .rotate(degrees)
+                .asBufferedImage();
 
-
-        // Write the rotated image to the file
         ImageIO.write(rotatedImage, "png", filePath.toFile());
 
         return ResponseEntity.ok("http://localhost:8080/api/image/get/" + fileName);
@@ -195,18 +192,15 @@ public ResponseEntity<String> rotateImage(@RequestParam("file") MultipartFile fi
                 Files.createDirectories(uploadPath);
             }
 
-            String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
+            String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
             Path filePath = uploadPath.resolve(fileName);
 
-            // Read the original image to get its dimensions
             BufferedImage originalImage = ImageIO.read(file.getInputStream());
 
-            // Create a thumbnail builder and resize the image
             BufferedImage resizedImage = Thumbnails.of(originalImage)
                     .size(width, height)
                     .asBufferedImage();
 
-            // Write the resized image to the file
             ImageIO.write(resizedImage, "png", filePath.toFile());
 
             return ResponseEntity.ok("http://localhost:8080/api/image/get/" + fileName);
@@ -224,21 +218,18 @@ public ResponseEntity<String> rotateImage(@RequestParam("file") MultipartFile fi
                 Files.createDirectories(uploadPath);
             }
 
-            String fileName = UUID.randomUUID().toString() + "_" + file.getOriginalFilename();
+            String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
             Path filePath = uploadPath.resolve(fileName);
 
-            // Read the original image to get its dimensions
             BufferedImage originalImage = ImageIO.read(file.getInputStream());
             int width = originalImage.getWidth();
             int height = originalImage.getHeight();
 
-            // Create a thumbnail builder and apply the grayscale filter
             BufferedImage processedImage = Thumbnails.of(originalImage)
                     .size(width, height)
                     .addFilter(new GrayscaleFilter())
                     .asBufferedImage();
 
-            // Write the processed image to the file
             ImageIO.write(processedImage, "png", filePath.toFile());
 
             return ResponseEntity.ok("http://localhost:8080/api/image/get/" + fileName);
